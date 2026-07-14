@@ -106,7 +106,7 @@
       transition: width 0.3s;
     }
 
-    .xanax-section {
+    .section {
       background: white;
       border-radius: 10px;
       padding: 20px;
@@ -114,18 +114,18 @@
       margin-bottom: 20px;
     }
 
-    .xanax-section h2 {
+    .section h2 {
       color: #667eea;
       margin-bottom: 15px;
     }
 
-    .xanax-form {
+    .form {
       display: flex;
       gap: 10px;
       margin-bottom: 20px;
     }
 
-    .xanax-form input {
+    .form input {
       flex: 1;
       padding: 10px;
       border: 1px solid #ddd;
@@ -133,7 +133,7 @@
       font-size: 1em;
     }
 
-    .xanax-form button {
+    .form button {
       background: #667eea;
       color: white;
       border: none;
@@ -144,31 +144,31 @@
       transition: all 0.3s;
     }
 
-    .xanax-form button:hover {
+    .form button:hover {
       background: #764ba2;
     }
 
-    .xanax-today {
+    .summary {
       background: #f9f9f9;
       padding: 15px;
       border-radius: 5px;
       margin-bottom: 20px;
     }
 
-    .xanax-today-total {
+    .summary-total {
       font-size: 2em;
       color: #667eea;
       font-weight: bold;
       margin-bottom: 10px;
     }
 
-    .xanax-entry {
+    .entry {
       padding: 8px 0;
       border-bottom: 1px solid #eee;
       font-size: 0.9em;
     }
 
-    .xanax-entry:last-child {
+    .entry:last-child {
       border-bottom: none;
     }
 
@@ -192,6 +192,31 @@
       font-size: 0.9em;
       margin-top: 20px;
     }
+
+    .activity-time {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .activity-time h3 {
+      font-size: 0.9em;
+      margin-bottom: 10px;
+      opacity: 0.9;
+    }
+
+    .activity-time-value {
+      font-size: 3em;
+      font-weight: bold;
+    }
+
+    .activity-time-unit {
+      font-size: 1.2em;
+      margin-left: 10px;
+    }
   </style>
 </head>
 <body>
@@ -202,6 +227,14 @@
     </header>
 
     <div id="error" class="error" style="display: none;"></div>
+
+    <div class="activity-time">
+      <h3>⏱️ Daily Activity Time</h3>
+      <div style="display: flex; align-items: center; justify-content: center;">
+        <span class="activity-time-value" id="activityMinutes">--</span>
+        <span class="activity-time-unit">minutes</span>
+      </div>
+    </div>
 
     <div class="dashboard">
       <div class="card">
@@ -220,10 +253,10 @@
       </div>
     </div>
 
-    <div class="xanax-section">
+    <div class="section">
       <h2>💊 Xanax Tracker</h2>
       
-      <div class="xanax-form">
+      <div class="form">
         <input 
           type="number" 
           id="xanaxAmount" 
@@ -239,13 +272,18 @@
         <button onclick="logXanax()">Log Xanax</button>
       </div>
 
-      <div class="xanax-today" id="xanaxToday" style="display: none;">
-        <div class="xanax-today-total" id="xanaxTotal">0 total today</div>
+      <div class="summary" id="xanaxToday" style="display: none;">
+        <div class="summary-total" id="xanaxTotal">0 total today</div>
         <div id="xanaxEntries"></div>
       </div>
 
       <h3 style="margin-top: 20px; margin-bottom: 10px;">Last 7 Days</h3>
       <div id="xanaxHistory" class="loading"></div>
+    </div>
+
+    <div class="section">
+      <h2>📊 Activity History</h2>
+      <div id="activityHistory" class="loading"></div>
     </div>
 
     <div class="last-update">
@@ -261,6 +299,8 @@
         document.getElementById('error').style.display = 'none';
         await Promise.all([
           loadStats(),
+          loadActivityToday(),
+          loadActivityHistory(),
           loadXanaxToday(),
           loadXanaxHistory()
         ]);
@@ -340,6 +380,36 @@
       `;
     }
 
+    async function loadActivityToday() {
+      const response = await fetch(`${API_BASE}/activity/today`);
+      if (!response.ok) throw new Error('Failed to load activity');
+      const data = await response.json();
+
+      document.getElementById('activityMinutes').textContent = data.activity_minutes || 0;
+    }
+
+    async function loadActivityHistory() {
+      const response = await fetch(`${API_BASE}/activity/history?days=7`);
+      if (!response.ok) throw new Error('Failed to load activity history');
+      const data = await response.json();
+
+      if (data.length === 0) {
+        document.getElementById('activityHistory').innerHTML = '<p>No data yet</p>';
+        return;
+      }
+
+      let html = '';
+      for (const day of data) {
+        html += `
+          <div class="stat-item">
+            <span class="stat-label">${day.date}</span>
+            <span class="stat-value">${day.activity_minutes} min (${day.check_count} checks)</span>
+          </div>
+        `;
+      }
+      document.getElementById('activityHistory').innerHTML = html;
+    }
+
     async function logXanax() {
       const amount = parseFloat(document.getElementById('xanaxAmount').value);
       const notes = document.getElementById('xanaxNotes').value;
@@ -384,7 +454,7 @@
       for (const entry of data.entries) {
         const time = new Date(entry.timestamp).toLocaleTimeString();
         entriesHTML += `
-          <div class="xanax-entry">
+          <div class="entry">
             <strong>${entry.amount}</strong> - ${time}
             ${entry.notes ? `<br><small>${entry.notes}</small>` : ''}
           </div>
